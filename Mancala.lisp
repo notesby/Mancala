@@ -1,26 +1,42 @@
-(defparameter *board* '((0 0 0) ((1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1))
-								 ((1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1)) (0 0 0)))
+(defparameter *board* '((0 0 0) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1)
+								(1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (0 0 0)))
 (defparameter *ai-score* 0) ;; partidas ganadas por la IA
 (defparameter *player-score* 0) ;; partidas ganadas por el jugador
 (defparameter *limit* 1) ;; limite en la busqueda a la profundo
 (defparameter *current-turn* 1) ;;1 o 2 
 (defparameter *finish* nil)
 
-(defun move (from &rest))
+(defun valid-move (state from type to turn)
+	""
+	())
 
-(defun is-GameOver? (state turn)
+(defun move (state from type to)
+	"Mueve canicas [type] 0,1 y 2" 
+	(setq result nil)
+	(loop for s in state
+		collect s into copy
+		finally (setf result copy))
+	(let ((hole1 (nth from result)) (hole2 (nth to result)))
+		(setf (nth type hole1) (- (nth type hole1) 1))
+		(setf (nth type hole2) (+ (nth type hole2) 1)))
+	result )
+
+(defun is-GameOver? (state)
 	"revisa si ya se acabo el juego"
-	(loop for h in (nth turn state)
-		with over
+	(loop for h in state
+		with over = nil
 		do (loop for c in h 
+				do (print c)
 				if (= c 1)
 					do (return (setf over nil))
-				 	do (setf over T))
+				do (setf over T))
+		when (null over)
+			do (return over)
 		finally (return over) ))
 
-(defun hole (x y)
+(defun hole (x)
 	"Devuelve la lista de canicas del hoyo"
-	(nth y (nth x *board*) ))
+	(nth x *board*) )
 
 (defun display-board () 
 	"Despliega el estado actual del tablero"
@@ -29,14 +45,14 @@
 	(format t "~&====================================================================~&")
 	(format t "~&====================================================================~&")
 	(format t "~&= A ~A == A V R == A V R == A V R == A V R == A V R == A V R == ~A A =~&" 
-		(first (first *board*)) (first (nth 3 *board*)) )
+		(first (first *board*)) (first (nth 13 *board*)) )
 	(format t "~&=     == ~{~A ~}== ~{~A ~}== ~{~A ~}== ~{~A ~}== ~{~A ~}== ~{~A ~}==     =~&" 
-		(hole 1 0) (hole 1 1) (hole 1 2) (hole 1 3) (hole 1 4) (hole 1 5))
+		(hole 1) (hole 2) (hole 3) (hole 4) (hole 5) (hole 6))
 	(format t "~&= V ~A ======================================================== ~A V =~&" 
-		(second (first *board*)) (second (nth 3 *board*)))
+		(second (first *board*)) (second (nth 13 *board*)))
 	(format t "~&=     == A V R == A V R == A V R == A V R == A V R == A V R ==     =~&")
 	(format t "~&= R ~A == ~{~A ~}== ~{~A ~}== ~{~A ~}== ~{~A ~}== ~{~A ~}== ~{~A ~}== ~A R =~&" 
-		(nth 2 (first *board*)) (hole 2 0) (hole 2 1) (hole 2 2) (hole 2 3) (hole 2 4) (hole 2 5) (nth 2 (nth 3 *board*)))
+		(nth 2 (first *board*)) (hole 7) (hole 8) (hole 9) (hole 10) (hole 11) (hole 12) (nth 2 (nth 13 *board*)))
 	(format t "~&====================================================================~&")
 	(format t "~&====================================================================~&")
 	(format t "Puntaje:~%")
