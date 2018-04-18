@@ -1,13 +1,28 @@
-(defparameter *board* '((0 0 0) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1)
-								(1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (0 0 0)))
+(defparameter *board* '((1 1 0) (2 3 2) (0 1 4) (0 0 0) (0 0 0) (0 0 0) (0 0 0)
+								(2 2 1) (2 1 1) (2 1 1) (1 1 1) (1 1 1) (1 1 1) (0 0 0)))
 (defparameter *ai-score* 0) ;; partidas ganadas por la IA
 (defparameter *player-score* 0) ;; partidas ganadas por el jugador
 (defparameter *limit* 1) ;; limite en la busqueda a la profundo
-(defparameter *current-turn* 1) ;;1 o 2 
+(defparameter *current-turn* 1) ;;1 player o 2 AI
 (defparameter *finish* nil)
 
-(defun valid-move (state from type to turn)
-	""
+(defun generate-valid-moves (state frm turn) 
+	"Genera una lista con los posibles movimientos validos"
+	(let* ((hole (nth frm state)) (steps (apply '+ hole)) (v-moves '())) 
+			(cond ((= turn 1) 
+					(loop for i downfrom (- frm 1) to 0
+						collect i into moves
+						finally (setf v-moves moves))
+					(when (< (- frm steps) 0) 
+							(loop for i from 7 to (+ 7 (mod (abs (- frm steps)) 6))
+								collect i into moves
+								finally (setf v-moves (append v-moves moves)) ) )
+					v-moves )
+					((= turn 2) '())
+					(T nil) ) ))
+
+(defun valid-move? (state from type to turn)
+	"Valida el movimiento"
 	())
 
 (defun move (state from type to)
