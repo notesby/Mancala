@@ -7,7 +7,7 @@
 (defparameter *limit* 1) ;; limite en la busqueda a la profundo
 (defparameter *current-turn* 1) ;;1 player o 2 AI
 (defparameter *finish* nil)
-(defparameter *winner* 0)
+(defparameter *finisher* 0)
 (defparameter *ai-move* nil)
 
 ;; (evalstate '((0 0 0) ((1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (0 0 0)) (1 0 0)))
@@ -30,17 +30,6 @@
 								finally (return (* x (- i) ) ) )) 
 					 ))
 					 evl ))
-
-(defun combinations (&rest lists)
-	(if (car lists)
-		(mapcan (lambda (inner-val)
-		        (mapcar (lambda (outer-val)
-		                  (cons outer-val
-		                        inner-val))
-		                (car lists)))
-		      (apply #'combinations (cdr lists)))
-		(list nil)))
-
 
 (defun getMarblesList (board hole) 
 	(loop for i from 0 to 2
@@ -101,10 +90,6 @@
 (defun getMarbles (board num) 
 	"Obtiene el total de canicas en el hoyo"
 	(loop for h in (nth num (second board)) sum h))
-
-(defun insert-after (lst index newelt) 
-	(push newelt (cdr (nthcdr index lst))) 
-	lst)
 
 (defun addGoalMov (lst search goal)
 	(let ((new-lst nil) (sIndex (loop for x in lst
@@ -180,15 +165,20 @@
 (defun isGameOver? (board)
 	"revisa si ya se acabo el juego"
 	(let ((over nil))
-		(setf over (or (loop for i from 0 to 5
-						always (isHoleEmpty? board i)) 
-						(loop for i from 6 to 11
-						always (isHoleEmpty? board i)))) ))
+		(when (loop for i from 0 to 5
+						always (isHoleEmpty? board i))
+				(setf over T)
+				(setf *finisher* 1))
+		(when (loop for i from 6 to 11
+						always (isHoleEmpty? board i))
+				(setf over T)
+				(setf *finisher* 2))
+		over ))
 
 (defun gencombinations (movements marbles)
 	(cond ((= (length movements) 1)
-		(loop for marble in marbles
-						collect (list (first movements) marble)))
+		(loop for i downfrom 2 to 0
+						collect (list (first movements) (nth i marbles))) )
 		(T (loop for res in (gencombinations (rest movements) marbles)
 			with nextres = '()
 			do (loop for marble in marbles
@@ -197,10 +187,7 @@
 						else
 							collect (list res (list (first movements) marble)) into temp
 						finally (setf nextres (append nextres temp)))
-			finally (return nextres) ))
-		
-	)
-)
+			finally (return nextres) )) ))
 
 (defun getDiffMarbles (board hole)
 	"Obtiene una lista con los diferentes tipos de canicas de [hole]"
@@ -208,9 +195,25 @@
 		when (nth i (nth hole (second board)) )
 		collect i))
 
+(defun isValidOperator? (board hole operator)
+	"Valida si un operador es valido con el [board] y el [hole] seleccionado"
+	(loop for op in operator 
+		with red = 0
+		with blue = 0
+		with green = 0
+		with marbles = (nth hole (second board))
+		if (= (second op) 0)
+			do (setf blue (+ blue 1))
+		else
+			if (= (second op) 1)
+				do (setf green (+ green 1))
+			else
+				do (setf red (+ red 1))
+			end
+		finally (return (not (or (< (- (first marbles) blue) 0) (< (- (second marbles) green) 0) (< (- (third marbles) red) 0)) )) ))
+
 (defun negamax-alfabeta (board depth alfa beta )
 	(cond ((or (isGameOver? board) (> depth *limit*) )
-		;(print (list (evalState board) board depth alfa beta))
 		 (evalState board) )
 		(T (let ((bestMov nil) 
 				(bestHole nil)
@@ -221,25 +224,12 @@
 				with value = nil
 				with num-mov = nil
 				with start-mov = nil
-				;when (isHoleEmpty? board i)
-				;do (format t "~A Esta vació ~A" i (getMarbles board i))
 				when (not (isHoleEmpty? board i))
 				do (setf movements (generateMoves board i 2)) and
 				do (setf num-mov (length movements)) and
 				do (setf start-mov (first movements)) and
 				do (setf operators (gencombinations movements (getDiffMarbles board i))) and
-				;do (print operators) and
-				;do (print (list "A" board movements i )) and (filteroperators (apply #'combinations (groupmovements (combinations (generatemoves *board* 11 2) (getMarblesList *board* 11)) 4)) -2)
-				;do (setf operators (combinations movements (getMarblesList board i) )) and
 				do (setf movements nil) and
-				;do (setf operators (groupMovements operators num-mov)) and
-				;do (setf operators (apply #'combinations operators)) and
-				;do (setf operators (filterOperators operators start-mov)) and
-				;when (>= (length operators) 120)
-					;do (print "operators debe ser 10") and
-					;do (setf operators (subseq operators 0 10))
-				;end and
-				;do (print (list board depth i " Operadores = " (length operators))) and
 				do (loop for op1 in operators
 						with new-state = nil
 						with op = nil
@@ -247,27 +237,21 @@
 							do (setf op (list op1) )
 						else 
 							do (setf op op1)
-						do (setf new-state (cloneBoard board))
-						do (apply-AI-move new-state i op)
-
-						;do (format t "~A" op)
-						;do (print (list new-state (+ depth 1) beta alfa bestValue))
-						do (setf value (negamax-alfabeta new-state (+ depth 1) (- beta) (- (max alfa bestValue)) ) )
-						do (setf new-state nil)
-						;do (format t "~A value = ~A" bestValue value)
-						do (setf value (- value))
-						when (> value bestValue)
-							;do (print (list "value" value)) and
-							do (setf bestValue value) and
-							do (setf bestMov op) and
-							do (setf bestHole i) and
-							when (>= bestValue beta )
-								;do (print operators) and
-								do (return T)
-							end )
+						when (isValidOperator? board i op)
+							do (setf new-state (cloneBoard board)) and
+							do (apply-AI-move new-state i op) and
+							do (setf value (negamax-alfabeta new-state (+ depth 1) (- beta) (- (max alfa bestValue)) ) ) and
+							do (setf new-state nil) and
+							do (setf value (- value)) and
+							when (> value bestValue) 
+								do (setf bestValue value) and
+								do (setf bestMov op) and
+								do (setf bestHole i) and
+								when (>= bestValue beta )
+									do (return T)
+								end )
 				do (setf operators nil)
-				finally (setf *ai-move* (list bestHole bestMov bestValue))(return value) )
-			))))
+				finally (setf *ai-move* (list bestHole bestMov bestValue))(return value) ) ))))
 
 
 (defun ask-box ()
@@ -286,14 +270,28 @@
 (defun human-turn ()
 	"Movimiento del jugador"
 	(let* ((selected-hole (ask-box)) 
-			;(total-marbles (getMarbles *board* selected-hole)) 
 			(movements (generateMoves *board* selected-hole 1)))
 			(move *board* movements selected-hole)
 			(when (not (= (first (last movements)) -1))
-					(setf *current-turn* 2) ))
-	;(setq selected-hole (ask-box))
-	;(setq total-marbles (getMarbles *board* selected-hole))
-	())
+					(setf *current-turn* 2) )))
+
+
+(defun display-movements (operators)
+	(format t "Movimientos de Skynet~&")
+	(loop for op in operators
+		with hole = 0
+		with type = 0
+		do (setf type (second op))
+		if (= (first op) -2 )
+			do (setf hole "GOAL")
+		else
+			do (setf hole (first op))
+		when (= 0 type)
+			do (format t "Movio una canica azul a ~A~&" hole)
+		when (= 1 type)
+			do (format t "Movio una canica verde a ~A~&" hole)
+		when (= 2 type)
+			do (format t "Movio una canica rojo a ~A~&" hole) ) )
 
 (defun Agent-turn ()
 	"Movimiento de la Agente"
@@ -301,11 +299,75 @@
 	(setf *ai-move* nil)
 	(negamax-alfabeta *board* 0 most-negative-fixnum most-positive-fixnum )
 	(let ((operators *ai-move*))
-		(print operators)
+		(display-movements (reverse (second operators)))
 		(apply-AI-move *board* (first operators) (reverse (second operators)))
 		(when (not (= (first (first (second operators))) -2)) 
-				(setf *current-turn* 1))
-								 ))
+				(setf *current-turn* 1)) ))
+
+(defun display-score ()
+	(let ((scoreHuman 0) (scoreIA 0))
+		(cond ((= *finisher* 1)
+				(setf scoreHuman (loop for i from 6 to 11
+					with hole = nil
+					do (setf hole (nth i (second *board*)))
+					sum (+ (* (first hole) 1)
+							 (* (second hole) 5)
+							  (* (third hole) 10) ) into total
+					finally (return (+ total (* (first (first *board*)) 1) 
+								(* (second (first *board*)) 5) 
+								(* (third (first *board*)) 10) )) ) )
+				(setf scoreIA (+ (* (first (third *board*)) 1) 
+								(* (second (third *board*)) 5) 
+								(* (third (third *board*)) 10) ) ) )
+			(T (setf scoreIA (loop for i from 0 to 5
+									with hole = nil
+									do (setf hole (nth i (second *board*)))
+									sum (+ (* (first hole) 1)
+											 (* (second hole) 5)
+											  (* (third hole) 10) ) into total
+									finally (return (+ total (* (first (third *board*)) 1) 
+												(* (second (third *board*)) 5)
+												 (* (third (third *board*)) 10))) ))
+				(setf scoreHuman (+ (* (first (first *board*)) 1) 
+									(* (second (first *board*)) 5) 
+									(* (third (first *board*)) 10) )) ) )
+		(cond ((> scoreHuman scoreIA)
+				(setf *player-score* (+ *player-score* 1))
+				(format t "Los humanos vencieron a las maquinas~&"))
+				(T (setf *ai-score* (+ *ai-score* 1))
+					(format t "Skynet ha ganado~&")) )
+		(format t "Puntaje ~&Humano = ~A ~&AI = ~A ~&" scoreHuman scoreIA ) ))
+
+
+(defun ask-playagain ()
+	"Pregunta al jugador si quiere jugar de nuevo"
+	(format t "Desea jugar de nuevo Y/N:~&")
+	(setq selected-option (read))
+	(cond ((not (symbolp selected-option)) 
+				(format t "Error ingrese Y o N:~&")
+				(ask-playagain))
+		(T T))
+	selected-option)
+
+(defun reset-game ()
+	(setf *board* '((0 0 0) ((1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1)
+								(1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1) (1 1 1)) (0 0 0)))
+	(setf *current-turn* 1)
+	(setf *finish* nil)
+	(setf *finisher* 0)
+	(setf *ai-move* nil)
+	(setf *limit* 1))
+
+(defun display-gameover ()
+	"Muestra el puntaje total"
+	(format t "~&====================================================================~&")
+	(format t "Fin del juego~&")
+	(format t "~&====================================================================~&")
+	(display-score)
+	(cond ((equal (ask-playagain) 'Y)
+			(reset-game)
+			(select-level))
+		(T (displayFarewell)) ))
 
 (defun gameloop () 
 	"El ciclo de juego"
@@ -314,8 +376,9 @@
 		(human-turn)
 		(Agent-turn))
 	(setf *finish* (isGameOver? *board*))
-	(when (not *finish*)
-			(gameloop) ))
+	(if (not *finish*)
+		(gameloop)
+		(display-gameover)	))
 
 (defun getHole (x)
 	"Devuelve la lista de canicas del hoyo"
