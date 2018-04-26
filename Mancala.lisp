@@ -14,22 +14,25 @@
 
 (defun evalState (board)
 	"Evalua el estado"
-	(let ((evl 0)) 
-		(setf evl 
-			(+ (* 13 (loop for i in (third board)
-						sum (* i  5)) ) 
-				(loop for h in (second board)
+	(let ((score 0) (evl-mov 0) (evl-neg-mov 0) (evl 0))
+		(setf score (loop for i in (third board)
+						for j from 0 to 2
+						sum (* (+ j 1) i  5) into score
+						finally (return (* 13 score))))
+		(setf evl-mov (loop for h in (second board)
 						for i from 6 to 11
 						sum (loop for j from 0 to 2
 								sum (+ (* (nth j h) 5) 1) into x
-								finally (return (* x (mod i 6) )) ))
-				(loop for h in (second board)
+								finally (return (* x (mod i 6) )) )))
+		(setf evl-neg-mov (loop for h in (second board)
 						for i from 1 to 6
 						sum (loop for j from 0 to 2
-								sum (+ (* (nth j h) 5) 1) into x
-								finally (return (* x (- i) ) ) )) 
-					 ))
-					 evl ))
+								sum (+ (* (nth j h) j 5) 1) into x
+								finally (return (* x (- i) ) ) )))
+		(setf evl (+ score (* evl-mov 0.5) (* evl-neg-mov 0.5) ))
+		evl ))
+
+
 
 (defun getMarblesList (board hole) 
 	(loop for i from 0 to 2
@@ -118,6 +121,20 @@
 			(when (and (= turn 2) (>= (+ hole marbles) 12) )
 					(setf moves (addGoalMov moves 0 -2)) ) 
 			moves ))
+
+
+(defun f (board hole operator) 
+	3)
+
+(defun quicksort (lst)
+	(if (null lst) 
+    	nil
+    	(let* ((x (first lst))
+	     		(r (rest lst))
+	     		(fn (lambda (a) (< (f a) (f x) ))))
+			(append (quicksort (remove-if-not fn r))
+					(list x)
+(quicksort (remove-if fn r))))))
 
 ;(defun move (board from type to)
 ;	"Mueve canicas [type] 0,1 y 2" 
@@ -212,9 +229,9 @@
 			end
 		finally (return (not (or (< (- (first marbles) blue) 0) (< (- (second marbles) green) 0) (< (- (third marbles) red) 0)) )) ))
 
-(defun negamax-alfabeta (board depth alfa beta )
+(defun negamax-alfabeta (board depth alfa beta color)
 	(cond ((or (isGameOver? board) (> depth *limit*) )
-		 (evalState board) )
+		 (* color (evalState board)) )
 		(T (let ((bestMov nil) 
 				(bestHole nil)
 				(bestValue most-negative-fixnum))
@@ -230,6 +247,7 @@
 				do (setf start-mov (first movements)) and
 				do (setf operators (gencombinations movements (getDiffMarbles board i))) and
 				do (setf movements nil) and
+				do (print (length operators)) and
 				do (loop for op1 in operators
 						with new-state = nil
 						with op = nil
@@ -240,7 +258,7 @@
 						when (isValidOperator? board i op)
 							do (setf new-state (cloneBoard board)) and
 							do (apply-AI-move new-state i op) and
-							do (setf value (negamax-alfabeta new-state (+ depth 1) (- beta) (- (max alfa bestValue)) ) ) and
+							do (setf value (negamax-alfabeta new-state (+ depth 1) (- beta) (- (max alfa bestValue)) (- color) ) ) and
 							do (setf new-state nil) and
 							do (setf value (- value)) and
 							when (> value bestValue) 
@@ -297,7 +315,7 @@
 	"Movimiento de la Agente"
 	(display-board)
 	(setf *ai-move* nil)
-	(negamax-alfabeta *board* 0 most-negative-fixnum most-positive-fixnum )
+	(negamax-alfabeta *board* 0 most-negative-fixnum most-positive-fixnum 1)
 	(let ((operators *ai-move*))
 		(display-movements (reverse (second operators)))
 		(apply-AI-move *board* (first operators) (reverse (second operators)))
