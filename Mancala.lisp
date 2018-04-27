@@ -21,16 +21,34 @@
 						finally (return (* 13 score))))
 		(setf evl-mov (loop for h in (second board)
 						for i from 6 to 11
-						sum (loop for j from 0 to 2
-								sum (+ (* (nth j h) 5) 1) into x
-								finally (return (* x (mod i 6) )) )))
+						when (= 0 (- i (getMarbles board i)))
+							sum 1 ))
 		(setf evl-neg-mov (loop for h in (second board)
 						for i from 1 to 6
-						sum (loop for j from 0 to 2
-								sum (+ (* (nth j h) j 5) 1) into x
-								finally (return (* x (- i) ) ) )))
-		(setf evl (+ score (* evl-mov 0.5) (* evl-neg-mov 0.5) ))
+						when (= 0 (- i (getMarbles board i)))
+							sum 1 ))
+		(setf evl (+ score (- evl-mov evl-neg-mov)) )
 		evl ))
+
+; (defun evalState (board)
+; 	"Evalua el estado"
+; 	(let ((score 0) (evl-mov 0) (evl-neg-mov 0) (evl 0))
+; 		(setf score (loop for i in (third board)
+; 						for j from 0 to 2
+; 						sum (* (+ j 1) i  5) into score
+; 						finally (return (* 13 score))))
+; 		(setf evl-mov (loop for h in (second board)
+; 						for i from 6 to 11
+; 						sum (loop for j from 0 to 2
+; 								sum (+ (* (nth j h) 5) 1) into x
+; 								finally (return (* x (mod i 6) )) )))
+; 		(setf evl-neg-mov (loop for h in (second board)
+; 						for i from 1 to 6
+; 						sum (loop for j from 0 to 2
+; 								sum (+ (* (nth j h) j 5) 1) into x
+; 								finally (return (* x (- i) ) ) )))
+; 		(setf evl (+ score (* evl-mov 0.5) (* evl-neg-mov 0.5) ))
+; 		evl ))
 
 
 
